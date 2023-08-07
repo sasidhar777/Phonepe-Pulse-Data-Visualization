@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import plotly.express as px
+import folium
+from streamlit_folium import folium_static
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
 
 
 st.title("Guvi's Pulse Data analysis Analysis")
@@ -70,7 +75,7 @@ def question4(dataframe1):
     df['Latitude'] = l1
     df['Longitude'] = l2
     #st.dataframe(df)
-    fig = px.scatter_geo(df, lat='Latitude', lon='Longitude', size='Transaction count', hover_name='state',
+    fig = px.scatter_geo(df,  lat='Latitude', lon='Longitude', size='Transaction count', hover_name='state',
                          title='Population in US Cities')
     st.plotly_chart(fig)
 
@@ -105,14 +110,89 @@ def question6():
         ax.text(bar.get_x() + bar.get_width() / 2., height, str(height),
                 ha='center', va='bottom')
     st.pyplot(fig)
+
+def question7():
+    conn = st.experimental_connection('mysql', type='sql')
+    st.subheader('Names of all videos and their corresponding channels')
+    user_input = st.text_input("Year whose transaction count to be predicted:")
+    df = conn.query('select year,sum(transacion_count) sum from aggregate_transacion group by year', ttl=600)
+    X=df['year']
+    y=df['sum']
+    model = LinearRegression()
+    x_train,x_test,y_train,y_test=train_test_split(X,y,test_size=0.2)
+    st.write(df)
+    model.fit(X.values.reshape(-1, 1), y.values.reshape(-1, 1))
+    if user_input.strip(): 
+        original_array = np.array([int(user_input)])
+        reshaped_array = original_array.reshape(-1, 1)
+        y_pred = model.predict(reshaped_array)   
+        st.write('transaction value predicted as on ' + user_input + ' is: ' + str(y_pred[0]/1000000000) + ' billions')
+        st.write(y_pred)
+        
+    else:
+        st.write("give year value in text box")
+        
+    
+
+def question8():
+    conn = st.experimental_connection('mysql', type='sql')
+    st.subheader('Names of all videos and their corresponding channels')
+    df = conn.query('select quarter as "Max Transaction in Year", count(*) as count from (\
+    select quarter from (\
+    SELECT quarter, amt ,\
+    max(amt) OVER( PARTITION BY year) AS max_amt from (\
+    select year,quarter,sum(transacion_amount) amt from  aggregate_transacion group by year,quarter) sub ) sub1\
+    where amt = max_amt) sub2 group by quarter ', ttl=600)
+    df=df.set_index("Max Transaction in Year")
+    st.dataframe(df)
+'''
+def question8():
+
+    map_center = [20.5937, 78.9629]
+    m = folium.Map(location=map_center, zoom_start=5)
+    folium.Marker(location=map_center, popup="India").add_to(m)
+    folium_static(m)'''
+
+def question9(dataframe1):
+    conn = st.experimental_connection('mysql', type='sql')
+    st.subheader('Names of all videos and their corresponding channels')
+    df = conn.query('select state, sum(transacion_count) "Transaction count" from aggregate_Transacion group by state', ttl=600)
+    l1=[]
+    l2=[]
+    for i in df['state']:
+        l1.append(latitue_key_val[i])
+    for i in df['state']:
+        l2.append(lonitude_key_val[i])
+    df['Latitude'] = l1
+    df['Longitude'] = l2
+    #st.dataframe(df)
+    fig = px.scatter_geo(df, lat='Latitude', lon='Longitude', size='Transaction count', hover_name='state',
+                         title='Population in US Cities')
+    fig.update_layout(
+        
+        geo_scope='asia'
+    )
+    st.plotly_chart(fig)
+
+
+
 if __name__ == "__main__":
+    options = ['Option 1', 'Option 2', 'Option 3', 'Option 4','Option 6', 'Option 7','Option 8','ALL']
     dataframe1 = pd.read_csv(r"C:\Users\AGM MSME PNB\OneDrive\Desktop\Sashidhar\Data scince\Projects\Phonepe Pulse Data Visualization\States_lat_long.csv")
     latitue_key_val = dict(zip(dataframe1['Name'], dataframe1['Latitude']))
     lonitude_key_val = dict(zip(dataframe1['Name'], dataframe1['Longitude']))
-
-    question1()
-    question2()  
-    question3() 
-    question4(dataframe1)
+    selected_options = st.multiselect('Select options:', options)
+    if 'Option 7' in  selected_options or 'ALL' in  selected_options :
+        question7()
+    '''
+    if 'Option 1' in  selected_options or 'ALL' in  selected_options :
+        question1()
+    if 'Option 2' in  selected_options or 'ALL' in  selected_options :
+        question2()  
+    if 'Option 3' in  selected_options or 'ALL' in  selected_options :
+        question3() 
+    if 'Option 4' in  selected_options or 'ALL' in  selected_options :
+        question4(dataframe1)
+    
     question5()
-    question6()
+    question6()'''
